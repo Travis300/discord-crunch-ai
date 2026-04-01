@@ -8,7 +8,6 @@ const {
 const {
   createWelcomeEmbed,
   createResponseEmbed,
-  createChoiceEmbed,
   createEndEmbed,
   createImageEmbed,
   createErrorEmbed,
@@ -231,21 +230,17 @@ async function dialogAPI(
             )
           }
         })
-        const choiceEmbed = createChoiceEmbed(interaction.client)
         if (isFollow) {
           await interaction.followUp({
-            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
         } else if (isLive == true && interaction.channel.isThread()) {
           await interaction.channel.send({
-            embeds: [choiceEmbed],
             components: [actionRow],
           })
         } else {
           await interaction.reply({
-            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
