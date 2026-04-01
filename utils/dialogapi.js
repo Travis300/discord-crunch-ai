@@ -137,6 +137,7 @@ async function dialogAPI(
 
   await saveData(user, username, isDM)
 
+  try {
   const response = await axios.post(
     `${process.env.VOICEFLOW_API_URL}/state/user/${user}/interact`,
     {
@@ -230,13 +231,21 @@ async function dialogAPI(
             )
           }
         })
+        const choiceEmbed = createChoiceEmbed(interaction.client)
         if (isFollow) {
           await interaction.followUp({
+            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
+        } else if (isLive == true && interaction.channel.isThread()) {
+          await interaction.channel.send({
+            embeds: [choiceEmbed],
+            components: [actionRow],
+          })
         } else {
           await interaction.reply({
+            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
@@ -245,10 +254,14 @@ async function dialogAPI(
         trace.type === 'visual' &&
         trace.payload.visualType === 'image'
       ) {
-        const embed = createImageEmbed(interaction.client, trace.payload.image)
-
+        const embed = createImageEmbed(
+          interaction.client,
+          trace.payload.image
+        )
         if (isFollow) {
           await interaction.followUp({ embeds: [embed], ephemeral: true })
+        } else if (isLive == true && interaction.channel.isThread()) {
+          await interaction.channel.send({ embeds: [embed] })
         } else {
           await interaction.reply({ embeds: [embed], ephemeral: true })
         }
@@ -284,6 +297,26 @@ async function dialogAPI(
         })
       }
       await saveTranscript(userName, avatarURL)
+
+      const endEmbed = createEndEmbed(interaction.client)
+      if (isFollow) {
+        await interaction.followUp({ embeds: [endEmbed], ephemeral: true })
+      } else if (interaction.channel) {
+        await interaction.channel.send({ embeds: [endEmbed] })
+      }
+    }
+  }
+  } catch (error) {
+    console.error('Error interacting with Voiceflow API:', error)
+    const errorEmbed = createErrorEmbed(interaction.client)
+    try {
+      if (isFollow) {
+        await interaction.followUp({ embeds: [errorEmbed], ephemeral: true })
+      } else if (interaction.channel) {
+        await interaction.channel.send({ embeds: [errorEmbed] })
+      }
+    } catch (sendError) {
+      console.error('Failed to send error embed:', sendError)
     }
   }
 }
