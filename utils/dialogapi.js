@@ -4,8 +4,15 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
 } = require('discord.js')
+const {
+  createWelcomeEmbed,
+  createResponseEmbed,
+  createChoiceEmbed,
+  createEndEmbed,
+  createImageEmbed,
+  createErrorEmbed,
+} = require('./embeds.js')
 
 let noReplyTimeout = null
 const versionID = process.env.VOICEFLOW_VERSION_ID || 'development'
@@ -130,6 +137,7 @@ async function dialogAPI(
 
   await saveData(user, username, isDM)
 
+  try {
   const response = await axios.post(
     `${process.env.VOICEFLOW_API_URL}/state/user/${user}/interact`,
     {
@@ -158,23 +166,51 @@ async function dialogAPI(
       if (trace.type === 'text') {
         if (isFollow) {
           await interaction.followUp({
-            content: trace.payload.message,
+            embeds: [
+              createResponseEmbed(
+                interaction.client,
+                trace.payload.message
+              ),
+            ],
             ephemeral: true,
           })
         } else if (isLive == true && process.env.THREADS == 'true') {
-          // Create a new thread from the message
-          interaction
-            .startThread({
-              name: threadTitle,
-              autoArchiveDuration: 10080, // Duration until the thread is archived in minutes, it can be '60', '1440', '4320', '10080'
+          if (interaction.channel.isThread()) {
+            await interaction.channel.send({
+              embeds: [
+                createResponseEmbed(
+                  interaction.client,
+                  trace.payload.message
+                ),
+              ],
             })
-            .then((newThread) => {
-              newThread.send(trace.payload.message)
-            })
-            .catch(console.error)
+          } else {
+            interaction
+              .startThread({
+                name: threadTitle,
+                autoArchiveDuration: 10080,
+              })
+              .then((newThread) => {
+                newThread.send({
+                  embeds: [
+                    createWelcomeEmbed(
+                      interaction.client,
+                      username,
+                      trace.payload.message
+                    ),
+                  ],
+                })
+              })
+              .catch(console.error)
+          }
         } else {
           await interaction.reply({
-            content: trace.payload.message,
+            embeds: [
+              createResponseEmbed(
+                interaction.client,
+                trace.payload.message
+              ),
+            ],
             ephemeral: true,
           })
         }
@@ -195,13 +231,21 @@ async function dialogAPI(
             )
           }
         })
+        const choiceEmbed = createChoiceEmbed(interaction.client)
         if (isFollow) {
           await interaction.followUp({
+            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
+        } else if (isLive == true && interaction.channel.isThread()) {
+          await interaction.channel.send({
+            embeds: [choiceEmbed],
+            components: [actionRow],
+          })
         } else {
           await interaction.reply({
+            embeds: [choiceEmbed],
             components: [actionRow],
             ephemeral: true,
           })
@@ -210,12 +254,14 @@ async function dialogAPI(
         trace.type === 'visual' &&
         trace.payload.visualType === 'image'
       ) {
-        const embed = new EmbedBuilder()
-          .setImage(trace.payload.image)
-          .setTitle('Image')
-
+        const embed = createImageEmbed(
+          interaction.client,
+          trace.payload.image
+        )
         if (isFollow) {
           await interaction.followUp({ embeds: [embed], ephemeral: true })
+        } else if (isLive == true && interaction.channel.isThread()) {
+          await interaction.channel.send({ embeds: [embed] })
         } else {
           await interaction.reply({ embeds: [embed], ephemeral: true })
         }
@@ -251,6 +297,26 @@ async function dialogAPI(
         })
       }
       await saveTranscript(userName, avatarURL)
+
+      const endEmbed = createEndEmbed(interaction.client)
+      if (isFollow) {
+        await interaction.followUp({ embeds: [endEmbed], ephemeral: true })
+      } else if (interaction.channel) {
+        await interaction.channel.send({ embeds: [endEmbed] })
+      }
+    }
+  }
+  } catch (error) {
+    console.error('Error interacting with Voiceflow API:', error)
+    const errorEmbed = createErrorEmbed(interaction.client)
+    try {
+      if (isFollow) {
+        await interaction.followUp({ embeds: [errorEmbed], ephemeral: true })
+      } else if (interaction.channel) {
+        await interaction.channel.send({ embeds: [errorEmbed] })
+      }
+    } catch (sendError) {
+      console.error('Failed to send error embed:', sendError)
     }
   }
 }
