@@ -3,7 +3,6 @@ const { EmbedBuilder } = require('discord.js')
 const COLORS = {
   WELCOME: 0x57f287,
   RESPONSE: 0x5865f2,
-  CHOICE: 0x5865f2,
   END: 0x95a5a6,
   ERROR: 0xed4245,
 }
@@ -29,14 +28,6 @@ function createResponseEmbed(client, messageText) {
     .setColor(COLORS.RESPONSE)
     .setAuthor(botAuthor(client))
     .setDescription(messageText)
-    .setFooter({ text: 'Powered by Crunch AI' })
-}
-
-function createChoiceEmbed(client) {
-  return new EmbedBuilder()
-    .setColor(COLORS.CHOICE)
-    .setAuthor(botAuthor(client))
-    .setDescription('Please select an option:')
     .setFooter({ text: 'Powered by Crunch AI' })
 }
 
@@ -72,7 +63,6 @@ function createErrorEmbed(client) {
 module.exports = {
   createWelcomeEmbed,
   createResponseEmbed,
-  createChoiceEmbed,
   createEndEmbed,
   createImageEmbed,
   createErrorEmbed,
