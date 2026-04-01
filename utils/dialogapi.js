@@ -4,8 +4,15 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
 } = require('discord.js')
+const {
+  createWelcomeEmbed,
+  createResponseEmbed,
+  createChoiceEmbed,
+  createEndEmbed,
+  createImageEmbed,
+  createErrorEmbed,
+} = require('./embeds.js')
 
 let noReplyTimeout = null
 const versionID = process.env.VOICEFLOW_VERSION_ID || 'development'
@@ -158,23 +165,51 @@ async function dialogAPI(
       if (trace.type === 'text') {
         if (isFollow) {
           await interaction.followUp({
-            content: trace.payload.message,
+            embeds: [
+              createResponseEmbed(
+                interaction.client,
+                trace.payload.message
+              ),
+            ],
             ephemeral: true,
           })
         } else if (isLive == true && process.env.THREADS == 'true') {
-          // Create a new thread from the message
-          interaction
-            .startThread({
-              name: threadTitle,
-              autoArchiveDuration: 10080, // Duration until the thread is archived in minutes, it can be '60', '1440', '4320', '10080'
+          if (interaction.channel.isThread()) {
+            await interaction.channel.send({
+              embeds: [
+                createResponseEmbed(
+                  interaction.client,
+                  trace.payload.message
+                ),
+              ],
             })
-            .then((newThread) => {
-              newThread.send(trace.payload.message)
-            })
-            .catch(console.error)
+          } else {
+            interaction
+              .startThread({
+                name: threadTitle,
+                autoArchiveDuration: 10080,
+              })
+              .then((newThread) => {
+                newThread.send({
+                  embeds: [
+                    createWelcomeEmbed(
+                      interaction.client,
+                      username,
+                      trace.payload.message
+                    ),
+                  ],
+                })
+              })
+              .catch(console.error)
+          }
         } else {
           await interaction.reply({
-            content: trace.payload.message,
+            embeds: [
+              createResponseEmbed(
+                interaction.client,
+                trace.payload.message
+              ),
+            ],
             ephemeral: true,
           })
         }
@@ -210,9 +245,7 @@ async function dialogAPI(
         trace.type === 'visual' &&
         trace.payload.visualType === 'image'
       ) {
-        const embed = new EmbedBuilder()
-          .setImage(trace.payload.image)
-          .setTitle('Image')
+        const embed = createImageEmbed(interaction.client, trace.payload.image)
 
         if (isFollow) {
           await interaction.followUp({ embeds: [embed], ephemeral: true })
