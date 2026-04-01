@@ -33,7 +33,11 @@ module.exports = {
       return
     }
 
-    if (process.env.LIVEANSWERS_CHANNELS.includes(message.channel.id)) {
+    if (
+      process.env.LIVEANSWERS_CHANNELS.includes(message.channel.id) ||
+      (message.channel.isThread() &&
+        process.env.LIVEANSWERS_CHANNELS.includes(message.channel.parentId))
+    ) {
       let liveAnswer = message
       liveAnswer.isLive = true
       const messageWithoutMention = message.content
